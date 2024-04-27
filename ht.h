@@ -273,7 +273,6 @@ private:
     HASH_INDEX_T mIndex_;  // index to CAPACITIES
 
     // ADD MORE DATA MEMBERS HERE, AS NECESSARY
-    HASH_INDEX_T size_;
     double alphamax_ = 1;
 
 };
@@ -295,7 +294,7 @@ const HASH_INDEX_T HashTable<K,V,Prober,Hash,KEqual>::CAPACITIES[] =
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 HashTable<K,V,Prober,Hash,KEqual>::HashTable(
     double resizeAlpha, const Prober& prober, const Hasher& hash, const KEqual& kequal)
-       :  hash_(hash), kequal_(kequal), prober_(prober), size_(0), alphamax_(resizeAlpha)
+       :  hash_(hash), kequal_(kequal), prober_(prober), alphamax_(resizeAlpha)
 {
     // Initialize any other data members as necessary
     mIndex_ = 0;
@@ -321,14 +320,27 @@ HashTable<K,V,Prober,Hash,KEqual>::~HashTable()
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 bool HashTable<K,V,Prober,Hash,KEqual>::empty() const
 {
-    return (size_ == 0);
+    return (size() == 0);
 }
 
 // To be completed
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 {
-    return size_;
+    size_t cap = CAPACITIES[mIndex_];
+    size_t count = 0;
+    for(size_t i = 0; i < cap; i++){
+        if(table_[i] == nullptr){
+            continue;
+        }
+        else if(table_[i]->deleted){
+            continue;
+        }
+        else{
+            count++;
+        }
+    }
+    return count;
 }
 
 // To be completed
@@ -344,10 +356,9 @@ void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
     } 
     else{
         table_[item]->deleted = false;
-        table_[item]->item.second = p.second;  // Update existing key
+        table_[item]->item.second = p.second;
     }
-    size_++;
-    if((size_ * 1.0)/CAPACITIES[mIndex_] > alphamax_){
+    if(((double) size())/CAPACITIES[mIndex_] > alphamax_){
         resize();
     }
 }
@@ -361,7 +372,6 @@ void HashTable<K,V,Prober,Hash,KEqual>::remove(const KeyType& key)
         return;
     }
     item->deleted = true;
-    size_--;
 }
 
 
@@ -435,20 +445,19 @@ typename HashTable<K,V,Prober,Hash,KEqual>::HashItem* HashTable<K,V,Prober,Hash,
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::resize()
 {
-    size_t cap = table_.capacity();
+    size_t cap = CAPACITIES[mIndex_];
     if(mIndex_ >= 27){
         throw std::logic_error("No available capacity");
     }
     std::vector<HashItem*> temptable = table_;
     table_.clear();
     table_.resize(CAPACITIES[++mIndex_]);
-    prober_.m_ = CAPACITIES[mIndex_];
     for(size_t i = 0; i < cap; i++){
         if(temptable[i] == nullptr){
             continue;
         }
         else if(temptable[i]->deleted){
-            delete temptable[i];
+            delete [] temptable[i];
         }
         else{
             insert(temptable[i]->item);
