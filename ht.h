@@ -298,6 +298,8 @@ HashTable<K,V,Prober,Hash,KEqual>::HashTable(
        :  hash_(hash), kequal_(kequal), prober_(prober), size_(0), alphamax_(resizeAlpha)
 {
     // Initialize any other data members as necessary
+    mIndex_ = 0;
+    table_.resize(11);
 }
 
 // To be completed
@@ -333,16 +335,34 @@ size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
 {
-    HashItem* item = internalFind(p.first);
-    if(item != nullptr){
-        item->item.first = p.first;
-        return;
+    KeyType tempp = p.first;
+    HASH_INDEX_T h = hash_(tempp) % CAPACITIES[mIndex_];
+    prober_.init(h, CAPACITIES[mIndex_], tempp);
+    HASH_INDEX_T item = prober_.next(); 
+    totalProbes_++;
+    while(Prober::npos != item)
+    {
+        if(nullptr == table_[item] ) {
+            break;
+        }
+        // fill in the condition for this else if statement which should 
+        // return 'loc' if the given key exists at this location
+        else if(table_[item]->item.first == tempp) {
+            break;
+        }
+        item = prober_.next();
+        totalProbes_++;
     }
-    HASH_INDEX_T index = probe(p.first);
-    if(index == prober_.npos){
-        throw std::logic_error("No suitable location");
+    if (item == npos){
+        throw std::logic_error("Unable to Find Appropriate Place");
     }
-    table_[index] = new HashItem(p);
+    else if(table_[item] == nullptr){
+        table_[item] = new HashItem(p);
+    } 
+    else{
+        table_[item]->deleted = false;
+        table_[item]->item.second = p.second;  // Update existing key
+    }
     size_++;
     if((size_ * 1.0)/CAPACITIES[mIndex_] > alphamax_){
         resize();
