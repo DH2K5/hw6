@@ -335,24 +335,7 @@ size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
 {
-    KeyType tempp = p.first;
-    HASH_INDEX_T h = hash_(tempp) % CAPACITIES[mIndex_];
-    prober_.init(h, CAPACITIES[mIndex_], tempp);
-    HASH_INDEX_T item = prober_.next(); 
-    totalProbes_++;
-    while(Prober::npos != item)
-    {
-        if(nullptr == table_[item] ) {
-            break;
-        }
-        // fill in the condition for this else if statement which should 
-        // return 'loc' if the given key exists at this location
-        else if(table_[item]->item.first == tempp) {
-            break;
-        }
-        item = prober_.next();
-        totalProbes_++;
-    }
+    HASH_INDEX_T item = probe(p.first); 
     if (item == npos){
         throw std::logic_error("Unable to Find Appropriate Place");
     }
@@ -378,6 +361,7 @@ void HashTable<K,V,Prober,Hash,KEqual>::remove(const KeyType& key)
         return;
     }
     item->deleted = true;
+    size_--;
 }
 
 
